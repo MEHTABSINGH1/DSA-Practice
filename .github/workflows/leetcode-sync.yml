@@ -1,0 +1,43 @@
+name: LeetCode sync
+
+on:
+  schedule:
+    - cron: "30 18 * * *"  # every night at 00:00 IST
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Import my whole submission history"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: leetcode-sync
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set commit author
+        run: |
+          git config user.name "${{ github.repository_owner }}"
+          git config user.email "${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com"
+
+      - name: Pull accepted submissions
+        env:
+          LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
+          LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
+          LAYOUT: difficulty
+          MAX_PAGES: ${{ inputs.full && '0' || '3' }}
+        run: python .github/scripts/leetcode_sync.py
+
+      - name: Push
+        run: git push
